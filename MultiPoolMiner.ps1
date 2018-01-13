@@ -87,7 +87,6 @@ Start-Transcript ".\Logs\$(Get-Date -Format "yyyy-MM-dd_HH-mm-ss").txt"
 $Downloader = Start-Job -InitializationScript ([scriptblock]::Create("Set-Location('$(Get-Location)')")) -ArgumentList ("2.7.1.4", $PSVersionTable.PSVersion, "") -FilePath .\Updater.ps1
 
 #Set donation parameters
-if ($Donate -lt 10) {$Donate = 10}
 $LastDonated = $Timer.AddDays(-1).AddHours(1)
 $WalletDonate = @("3DJtEaAAxt6eMkkoJYdBVvatKGTL329UJj","1Q24z7gHPDbedkaWDTFqhMF8g7iHMehsCb", "1Fonyo1sgJQjEzqp1AxgbHhGkCuNrFt6v9")[[Math]::Floor((Get-Random -Minimum 1 -Maximum 11) / 10)]
 $UserNameDonate = @("jimok82","aaronsace", "fonyo")[[Math]::Floor((Get-Random -Minimum 1 -Maximum 11) / 11)]
@@ -111,16 +110,18 @@ while ($true) {
     $WatchdogReset = ($WatchdogReset / ($Strikes * $Strikes * $Strikes) * (($Strikes * $Strikes * $Strikes) - 1)) + $StatSpan.TotalSeconds
 
     #Activate or deactivate donation
-    if ($Timer.AddDays(-1).AddMinutes($Donate) -ge $LastDonated) {
-        if ($Wallet) {$Wallet = $WalletDonate}
-        if ($UserName) {$UserName = $UserNameDonate}
-        if ($WorkerName) {$WorkerName = $WorkerNameDonate}
-    }
-    if ($Timer.AddDays(-1) -ge $LastDonated) {
-        $Wallet = $WalletBackup
-        $UserName = $UserNameBackup
-        $WorkerName = $WorkerNameBackup
-        $LastDonated = $Timer
+    if ($Donate -gt 0) {
+        if ($Timer.AddDays(-1).AddMinutes($Donate) -ge $LastDonated) {
+            if ($Wallet) {$Wallet = $WalletDonate}
+            if ($UserName) {$UserName = $UserNameDonate}
+            if ($WorkerName) {$WorkerName = $WorkerNameDonate}
+        }
+        if ($Timer.AddDays(-1) -ge $LastDonated) {
+            $Wallet = $WalletBackup
+            $UserName = $UserNameBackup
+            $WorkerName = $WorkerNameBackup
+            $LastDonated = $Timer
+        }
     }
 
     #Update the exchange rates

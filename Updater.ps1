@@ -9,15 +9,17 @@ $ProgressPreferenceBackup = $ProgressPreference
 $Name = "MultiPoolMiner"
 try {
     $ProgressPreference = "SilentlyContinue"
-    $Request = Invoke-RestMethod -Uri "https://api.github.com/repos/miningpoolhubstats/$Name/releases/latest" -UseBasicParsing -TimeoutSec 10 -ErrorAction Stop
-    $Version = ($Request.tag_name -replace '^v')
-    $Uri = $Request.assets | Where-Object Name -EQ "$($Name)V$($Version).zip" | Select-Object -ExpandProperty browser_download_url
+    New-Alias -Name git -Value "$Env:ProgramFiles\Git\bin\git.exe"
+    $TagName = git describe --abbrev=0 --tags
+    $Version = ($TagName -replace '^v')
 
     if ($Version -ne $MPMVersion) {
         $ProgressPreference = $ProgressPreferenceBackup
-        Write-Progress -Activity "Updater" -Status $Name -CurrentOperation "Acquiring Online ($URI)"
+        Write-Progress -Activity "Updater" -Status $Name -CurrentOperation "Pulling changes from git"
+        $PullResult = git pull
+        Write-Progress -Activity "Updater" -Status $Name -CurrentOperation $PullResult
         $ProgressPreference = "SilentlyContinue"
-        Write-Warning "$Name is out of date; there is an updated version available at $URI. "
+        Write-Warning "$Name is out of date; current version is $MPMVersion and version $Version is available. "
     }
 }
 catch {
