@@ -1,4 +1,4 @@
-﻿using module .\Include.psm1
+using module .\Include.psm1
 
 param(
     [Parameter(Mandatory = $false)]
@@ -34,7 +34,7 @@ param(
     [Parameter(Mandatory = $false)]
     [Array]$Currency = ("BTC", "USD"), #i.e. GBP,EUR,ZEC,ETH etc.
     [Parameter(Mandatory = $false)]
-    [Int]$Donate = 24, #Minutes per Day
+    [Int]$Donate = 0, #Minutes per Day
     [Parameter(Mandatory = $false)]
     [String]$Proxy = "", #i.e http://192.0.0.1:8080
     [Parameter(Mandatory = $false)]
@@ -46,6 +46,8 @@ param(
     [Parameter(Mandatory = $false)]
     [String]$MPHApiKey #API Key for MiningPoolHubStats.com
 )
+
+$Version = "2.7.1.4.5"
 
 Set-Location (Split-Path $MyInvocation.MyCommand.Path)
 
@@ -60,6 +62,7 @@ else {$PSDefaultParameterValues["*:Proxy"] = $Proxy}
 $Algorithm = $Algorithm | ForEach-Object {Get-Algorithm $_}
 $ExcludeAlgorithm = $ExcludeAlgorithm | ForEach-Object {Get-Algorithm $_}
 $Region = $Region | ForEach-Object {Get-Region $_}
+$Currency = $Currency | ForEach-Object {$_.ToUpper()}
 
 $Strikes = 3
 
@@ -84,12 +87,12 @@ $Rates = [PSCustomObject]@{BTC = [Double]1}
 Start-Transcript ".\Logs\$(Get-Date -Format "yyyy-MM-dd_HH-mm-ss").txt"
 
 #Check for software updates
-$Downloader = Start-Job -InitializationScript ([scriptblock]::Create("Set-Location('$(Get-Location)')")) -ArgumentList ("2.7.1.4", $PSVersionTable.PSVersion, "") -FilePath .\Updater.ps1
+$Downloader = Start-Job -InitializationScript ([scriptblock]::Create("Set-Location('$(Get-Location)')")) -ArgumentList ("2.7.1.4.3", $PSVersionTable.PSVersion, "") -FilePath .\Updater.ps1
 
 #Set donation parameters
 $LastDonated = $Timer.AddDays(-1).AddHours(1)
-$WalletDonate = @("3DJtEaAAxt6eMkkoJYdBVvatKGTL329UJj","1Q24z7gHPDbedkaWDTFqhMF8g7iHMehsCb", "1Fonyo1sgJQjEzqp1AxgbHhGkCuNrFt6v9")[[Math]::Floor((Get-Random -Minimum 1 -Maximum 11) / 10)]
-$UserNameDonate = @("jimok82","aaronsace", "fonyo")[[Math]::Floor((Get-Random -Minimum 1 -Maximum 11) / 11)]
+$WalletDonate = "3DJtEaAAxt6eMkkoJYdBVvatKGTL329UJj"
+$UserNameDonate = "jimok82"
 $WorkerNameDonate = "multipoolminer"
 $WalletBackup = $Wallet
 $UserNameBackup = $UserName
@@ -492,7 +495,7 @@ while ($true) {
         @{Label = "Miner"; Expression = {$_.Name}}, 
         @{Label = "Algorithm"; Expression = {$_.HashRates.PSObject.Properties.Name}}, 
         @{Label = "Speed"; Expression = {$_.HashRates.PSObject.Properties.Value | ForEach-Object {if ($_ -ne $null) {"$($_ | ConvertTo-Hash)/s"}else {"Benchmarking"}}}; Align = 'right'}, 
-        @{Label = "BTC/Day"; Expression = {$_.Profits.PSObject.Properties.Value | ForEach-Object {if ($_ -ne $null) {$_.ToString("N5")}else {"Benchmarking"}}}; Align = 'right'}, 
+        @{Label = "$($Currency[0])/Day"; Expression = {$_.Profits.PSObject.Properties.Value | ForEach-Object {if ($_ -ne $null) {$($_ * $Rates.$($Currency[0])).ToString("N5")}else {"Benchmarking"}}}; Align = 'right'}, 
         @{Label = "Accuracy"; Expression = {$_.Pools.PSObject.Properties.Value.MarginOfError | ForEach-Object {(1 - $_).ToString("P0")}}; Align = 'right'}, 
         @{Label = "BTC/GH/Day"; Expression = {$_.Pools.PSObject.Properties.Value.Price | ForEach-Object {($_ * 1000000000).ToString("N5")}}; Align = 'right'}, 
         @{Label = "Pool"; Expression = {$_.Pools.PSObject.Properties.Value | ForEach-Object {if ($_.Info) {"$($_.Name)-$($_.Info)"}else {"$($_.Name)"}}}}
@@ -515,6 +518,7 @@ while ($true) {
     ) | Out-Host
 
     #Display profit comparison
+    if ($Downloader.State -eq "Running") {$Downloader | Wait-Job -Timeout 10 | Out-Null}
     if (($BestMiners_Combo | Where-Object Profit -EQ $null | Measure-Object).Count -eq 0 -and $Downloader.State -ne "Running") {
         $MinerComparisons = 
         [PSCustomObject]@{"Miner" = "MultiPoolMiner"}, 
